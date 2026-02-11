@@ -2,137 +2,36 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>簡易戦国シミュレーション</title>
+    <title>戦国地図シミュレーション</title>
     <style>
-        body { font-family: "Sawarabi Mincho", serif; background-color: #2c2c2c; color: #fdfdfd; display: flex; flex-direction: column; align-items: center; }
-        #game-container { width: 600px; background: #3e3e3e; padding: 20px; border: 4px double #d4af37; border-radius: 8px; margin-top: 20px; }
-        h1 { text-align: center; color: #d4af37; border-bottom: 2px solid #d4af37; }
-        .status-bar { display: flex; justify-content: space-around; background: #1a1a1a; padding: 10px; margin-bottom: 20px; border-radius: 5px; }
-        .log { height: 150px; overflow-y: scroll; background: #000; padding: 10px; font-size: 0.9em; color: #00ff00; border: 1px solid #777; margin-bottom: 20px; }
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 10px; cursor: pointer; background: #8b4513; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        button:hover { background: #a0522d; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        .enemy-info { margin-top: 20px; padding: 10px; border: 1px dashed #d4af37; text-align: center; }
+        body { font-family: "Sawarabi Mincho", serif; background-color: #1a1a1a; color: #fff; margin: 0; display: flex; justify-content: center; }
+        #game-wrapper { width: 900px; display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 20px; }
+        
+        /* 地図エリア */
+        #map-container { background: #2c3e50; border: 3px solid #d4af37; border-radius: 10px; position: relative; padding: 10px; }
+        svg { width: 100%; height: auto; }
+        .region { cursor: pointer; stroke: #fff; stroke-width: 1; transition: fill 0.3s; }
+        .region:hover { opacity: 0.8; }
+        .region-label { fill: white; font-size: 12px; pointer-events: none; text-anchor: middle; }
+
+        /* 情報パネル */
+        #ui-panel { background: #333; padding: 20px; border: 2px solid #777; border-radius: 10px; }
+        .status-box { background: #000; padding: 10px; margin-bottom: 10px; border-left: 5px solid #d4af37; }
+        .log { height: 200px; overflow-y: auto; background: #111; padding: 10px; font-size: 0.85em; border: 1px solid #555; color: #0f0; margin-top: 10px; }
+        
+        .btn-action { width: 100%; padding: 10px; margin-top: 10px; background: #8b4513; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn-action:hover { background: #a0522d; }
+        .btn-action:disabled { background: #444; }
+
+        h2 { color: #d4af37; margin-top: 0; border-bottom: 1px solid #d4af37; }
+        .owner-tag { font-size: 0.8em; color: #aaa; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <h1>戦国シミュレーション</h1>
-
-        <div class="status-bar">
-            <div>年数: <span id="year">1</span>年</div>
-            <div>金銭: <span id="gold">500</span></div>
-            <div>兵力: <span id="soldiers">100</span></div>
-            <div>領土: <span id="territory">1</span></div>
-        </div>
-
-        <div class="log" id="log">
-            <div>天下統一を目指し、軍備を整えよ！</div>
-        </div>
-
-        <div class="actions">
-            <button onclick="develop()">開墾 (金-100 / 収入UP)</button>
-            <button onclick="recruit()">徴兵 (金-150 / 兵力+50)</button>
-            <button onclick="march()">出陣 (兵力消費 / 領土拡大へ)</button>
-            <button onclick="nextTurn()">何もしない (次へ)</button>
-        </div>
-
-        <div class="enemy-info">
-            <strong>近隣の敵勢力</strong><br>
-            防衛兵力: <span id="enemy-power">150</span>
-        </div>
-    </div>
-
-<script>
-    // ゲームデータ
-    let state = {
-        year: 1,
-        gold: 500,
-        soldiers: 100,
-        territory: 1,
-        income: 200,
-        enemyPower: 150
-    };
-
-    function updateDisplay() {
-        document.getElementById('year').innerText = state.year;
-        document.getElementById('gold').innerText = state.gold;
-        document.getElementById('soldiers').innerText = state.soldiers;
-        document.getElementById('territory').innerText = state.territory;
-        document.getElementById('enemy-power').innerText = state.enemyPower;
-    }
-
-    function addLog(message) {
-        const logDiv = document.getElementById('log');
-        const newMessage = document.createElement('div');
-        newMessage.innerText = `[${state.year}年] ${message}`;
-        logDiv.prepend(newMessage);
-    }
-
-    // アクション：開墾
-    function develop() {
-        if (state.gold >= 100) {
-            state.gold -= 100;
-            state.income += 50;
-            addLog("開墾を行い、毎年の収入が増えました。");
-            nextTurn();
-        } else {
-            addLog("金銭が足りません。");
-        }
-    }
-
-    // アクション：徴兵
-    function recruit() {
-        if (state.gold >= 150) {
-            state.gold -= 150;
-            state.soldiers += 50;
-            addLog("徴兵を行い、兵力が50増強されました。");
-            nextTurn();
-        } else {
-            addLog("金銭が足りません。");
-        }
-    }
-
-    // アクション：出陣
-    function march() {
-        if (state.soldiers > 0) {
-            addLog(`敵軍（兵力${state.enemyPower}）に攻め込みました！`);
-            
-            // 勝敗判定（ランダム要素あり）
-            let playerRoll = state.soldiers * (0.8 + Math.random() * 0.4);
-            let enemyRoll = state.enemyPower;
-
-            if (playerRoll > enemyRoll) {
-                state.territory += 1;
-                state.soldiers = Math.floor(state.soldiers * 0.6); // 損害
-                state.enemyPower = Math.floor(state.enemyPower * 1.5 + 100); // 次の敵は強い
-                addLog("勝利！領土を拡大しました。兵に損害が出ました。");
-            } else {
-                state.soldiers = Math.floor(state.soldiers * 0.3);
-                addLog("敗北… 兵力の大部分を失いました。");
-            }
-            nextTurn();
-        } else {
-            addLog("兵力がいません。");
-        }
-    }
-
-    // ターン経過
-    function nextTurn() {
-        state.year++;
-        state.gold += state.income;
-        addLog(`新年を迎えました。金銭${state.income}を獲得。`);
-        
-        if (state.territory >= 10) {
-            alert("おめでとうございます！天下を統一しました！");
-            location.reload();
-        }
-        updateDisplay();
-    }
-
-    updateDisplay();
-</script>
-</body>
-</html>
+<div id="game-wrapper">
+    <div id="map-container">
+        <h2 id="map-title">日本全図 (地域を選択)</h2>
+        <svg viewBox="0 0 500 500">
+            <path id="tohoku" class="region" d="M380 50 L430 50 L430 150 L380 180 Z" />
+            <text x="405" y="110" class="region-label">東北

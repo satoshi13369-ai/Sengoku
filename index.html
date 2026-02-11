@@ -34,4 +34,162 @@
         <h2 id="map-title">日本全図 (地域を選択)</h2>
         <svg viewBox="0 0 500 500">
             <path id="tohoku" class="region" d="M380 50 L430 50 L430 150 L380 180 Z" />
-            <text x="405" y="110" class="region-label">東北
+            <text x="405" y="110" class="region-label">東北</text>
+            
+            <path id="kanto" class="region" d="M350 180 L420 180 L410 250 L350 250 Z" />
+            <text x="385" y="220" class="region-label">関東</text>
+            
+            <path id="chubu" class="region" d="M280 180 L350 180 L350 280 L280 280 Z" />
+            <text x="315" y="235" class="region-label">中部</text>
+            
+            <path id="kinki" class="region" d="M220 230 L280 230 L280 320 L220 320 Z" />
+            <text x="250" y="280" class="region-label">近畿</text>
+            
+            <path id="chugoku" class="region" d="M120 250 L220 250 L220 300 L120 300 Z" />
+            <text x="170" y="280" class="region-label">中国</text>
+            
+            <path id="shikoku" class="region" d="M140 310 L210 310 L210 350 L140 350 Z" />
+            <text x="175" y="335" class="region-label">四国</text>
+            
+            <path id="kyushu" class="region" d="M40 300 L110 300 L110 420 L40 420 Z" />
+            <text x="75" y="365" class="region-label">九州</text>
+        </svg>
+        <div style="text-align: center; font-size: 0.8em; color: #ccc;">※地域をクリックして出陣先を選択</div>
+    </div>
+
+    <div id="ui-panel">
+        <h2>自軍：織田家</h2>
+        <div class="status-box">
+            <div>武将：<strong id="leader">織田信長</strong></div>
+            <div>金銭：<span id="gold">1000</span></div>
+            <div>兵力：<span id="soldiers">500</span></div>
+            <div>領土：<span id="territory-count">1</span> / 7</div>
+        </div>
+
+        <button class="btn-action" onclick="domesticPolicy()">内政 (金-200 / 収入UP)</button>
+        <button class="btn-action" onclick="recruit()">徴兵 (金-300 / 兵力+200)</button>
+        
+        <div class="log" id="log">
+            <div>--- 1560年 桶狭間の戦い直後 ---</div>
+            <div>天下布武への道を歩み出せ。</div>
+        </div>
+        
+        <div id="target-info" style="margin-top:15px; display:none;">
+            <p>選択中: <strong id="target-name">--</strong><br>
+            敵勢力: <span id="target-owner">--</span><br>
+            敵兵力: <span id="target-power">--</span></p>
+            <button class="btn-action" style="background:#b22222;" onclick="attack()">出陣する！</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 武将データ
+    const warlords = {
+        oda: { name: "織田信長", color: "#e74c3c", gold: 1000, soldiers: 500, income: 300 },
+        date: { name: "伊達政宗", color: "#2c3e50", soldiers: 400 },
+        hojo: { name: "北条氏康", color: "#f1c40f", soldiers: 600 },
+        takeda: { name: "武田信玄", color: "#c0392b", soldiers: 800 },
+        mori: { name: "毛利元就", color: "#27ae60", soldiers: 500 },
+        chosokabe: { name: "長宗我部元親", color: "#8e44ad", soldiers: 300 },
+        shimazu: { name: "島津義久", color: "#7f8c8d", soldiers: 700 }
+    };
+
+    // 地域データ
+    const regions = {
+        tohoku: { name: "東北", owner: "date", power: 400 },
+        kanto: { name: "関東", owner: "hojo", power: 600 },
+        chubu: { name: "中部", owner: "oda", power: 500 }, // プレイヤー初期位置
+        kinki: { name: "近畿", owner: "ashikaga", power: 300 },
+        chugoku: { name: "中国", owner: "mori", power: 500 },
+        shikoku: { name: "四国", owner: "chosokabe", power: 300 },
+        kyushu: { name: "九州", owner: "shimazu", power: 700 }
+    };
+
+    let selectedRegionId = null;
+
+    function initMap() {
+        for (let id in regions) {
+            const el = document.getElementById(id);
+            const ownerKey = regions[id].owner;
+            const color = warlords[ownerKey] ? warlords[ownerKey].color : "#95a5a6";
+            el.style.fill = color;
+            
+            el.onclick = () => selectRegion(id);
+        }
+    }
+
+    function selectRegion(id) {
+        if (regions[id].owner === "oda") {
+            addLog("ここは自領です。");
+            return;
+        }
+        selectedRegionId = id;
+        document.getElementById('target-info').style.display = "block";
+        document.getElementById('target-name').innerText = regions[id].name;
+        document.getElementById('target-owner').innerText = warlords[regions[id].owner] ? warlords[regions[id].owner].name : "その他勢力";
+        document.getElementById('target-power').innerText = regions[id].power;
+    }
+
+    function addLog(msg) {
+        const log = document.getElementById('log');
+        log.innerHTML = `<div>> ${msg}</div>` + log.innerHTML;
+    }
+
+    function domesticPolicy() {
+        if (warlords.oda.gold >= 200) {
+            warlords.oda.gold -= 200;
+            warlords.oda.income += 100;
+            addLog("楽市楽座を整備。収入が上がった！");
+            updateUI();
+        }
+    }
+
+    function recruit() {
+        if (warlords.oda.gold >= 300) {
+            warlords.oda.gold -= 300;
+            warlords.oda.soldiers += 200;
+            addLog("三段構えの鉄砲隊を組織。兵力が増強された。");
+            updateUI();
+        }
+    }
+
+    function attack() {
+        const target = regions[selectedRegionId];
+        addLog(`${target.name}へ出陣！`);
+
+        if (warlords.oda.soldiers > target.power) {
+            addLog(`勝利！${target.name}を平らげた！`);
+            warlords.oda.soldiers -= Math.floor(target.power * 0.5);
+            target.owner = "oda";
+            document.getElementById(selectedRegionId).style.fill = warlords.oda.color;
+            document.getElementById('target-info').style.display = "none";
+        } else {
+            addLog("敗北… 兵が退却しました。");
+            warlords.oda.soldiers = Math.floor(warlords.oda.soldiers * 0.2);
+        }
+        
+        // ターン終了処理的なもの
+        warlords.oda.gold += warlords.oda.income;
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('gold').innerText = warlords.oda.gold;
+        document.getElementById('soldiers').innerText = warlords.oda.soldiers;
+        
+        let count = 0;
+        for(let r in regions) if(regions[r].owner === "oda") count++;
+        document.getElementById('territory-count').innerText = count;
+
+        if (count === 7) {
+            alert("天下統一！あなたは日本の支配者となりました！");
+        }
+    }
+
+    initMap();
+    updateUI();
+</script>
+
+</body>
+</html>
